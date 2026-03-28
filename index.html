@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Quản lý kho QR</title>
+
+<!-- Thư viện -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+body { font-family: Arial; text-align:center; background:#f2f2f2; }
+#reader { width:300px; margin:auto; }
+
+#kho { display:none; margin-top:20px; }
+
+img { width:600px; border-radius:10px; }
+
+.form {
+    margin-top:20px;
+    display:none;
+}
+
+input, button {
+    padding:8px;
+    margin:5px;
+}
+
+table {
+    margin:auto;
+    border-collapse:collapse;
+    background:white;
+}
+
+td, th {
+    border:1px solid #ccc;
+    padding:6px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📷 Quét QR để mở kho</h2>
+<div id="reader"></div>
+
+<!-- KHU HIỂN THỊ SAU QR -->
+<div id="kho">
+    <img src="sodo.png">
+
+    <div class="form" id="form">
+        <h3>Quản lý vật chất</h3>
+
+        <input id="ten" placeholder="Loại vật chất">
+        <input id="sl" type="number" placeholder="Số lượng">
+        <input id="nguoi" placeholder="Người mượn">
+
+        <br>
+
+        <button onclick="nhap()">Nhập</button>
+        <button onclick="xuat()">Xuất</button>
+        <button onclick="muon()">Mượn</button>
+    </div>
+
+    <h3>📊 Tồn kho</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Loại vật chất</th>
+                <th>Số lượng còn</th>
+                <th>Người mượn</th>
+                <th>Thời gian mượn</th>
+            </tr>
+        </thead>
+        <tbody id="table"></tbody>
+    </table>
+</div>
+
+<script>
+let data = [];
+
+// 📥 Load Excel
+fetch("dulieukho.xlsx")
+.then(res => res.arrayBuffer())
+.then(ab => {
+    let wb = XLSX.read(ab, {type:"array"});
+    let sheet = wb.Sheets[wb.SheetNames[0]];
+    data = XLSX.utils.sheet_to_json(sheet);
+    render();
+});
+
+// 📊 Hiển thị
+function render(){
+    let html = "";
+    data.forEach(d => {
+        html += `
+        <tr>
+            <td>${d["Loại vật chất"]}</td>
+            <td>${d["Số lượng"]}</td>
+            <td>${d["Người mượn"] || ""}</td>
+            <td>${d["Thời gian mượn"] || ""}</td>
+        </tr>`;
+    });
+    document.getElementById("table").innerHTML = html;
+}
+
+// 🔍 tìm vật
+function getItem(){
+    let ten = document.getElementById("ten").value.trim().toLowerCase();
+    return data.find(d => d["Loại vật chất"].toLowerCase() === ten);
+}
+
+// 📥 Nhập
+function nhap(){
+    let item = getItem();
+    let sl = parseInt(document.getElementById("sl").value);
+
+    if(item){
+        item["Số lượng"] += sl;
+    } else {
+        alert("Không tìm thấy vật!");
+    }
+    render();
+}
+
+// 📤 Xuất
+function xuat(){
+    let item = getItem();
+    let sl = parseInt(document.getElementById("sl").value);
+
+    if(item && item["Số lượng"] >= sl){
+        item["Số lượng"] -= sl;
+    } else {
+        alert("Không đủ!");
+    }
+    render();
+}
+
+// 👤 Mượn
+function muon(){
+    let item = getItem();
+    let sl = parseInt(document.getElementById("sl").value);
+    let nguoi = document.getElementById("nguoi").value;
+
+    if(item && item["Số lượng"] >= sl){
+        item["Số lượng"] -= sl;
+        item["Người mượn"] = nguoi;
+        item["Thời gian mượn"] = new Date().toLocaleString();
+    } else {
+        alert("Không đủ!");
+    }
+    render();
+}
+
+// 📷 QR scan
+function onScanSuccess(text){
+    if(text === "open-kho"){
+        document.getElementById("kho").style.display = "block";
+        document.getElementById("form").style.display = "block";
+    } else {
+        alert("QR sai!");
+    }
+}
+
+new Html5QrcodeScanner("reader", {fps:10, qrbox:250})
+.render(onScanSuccess);
+
+</script>
+
+</body>
+</html>
