@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Quản lý kho</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+body { font-family: Arial; text-align:center; background:#f2f2f2; }
+
+img {
+    width:600px;
+    margin-top:20px;
+    border-radius:10px;
+}
+
+input, button {
+    padding:8px;
+    margin:5px;
+}
+
+table {
+    margin:auto;
+    border-collapse:collapse;
+    background:white;
+}
+
+td, th {
+    border:1px solid #ccc;
+    padding:6px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📦 Sơ đồ kho</h2>
+<img src="sodo.png">
+
+<h3>Quản lý vật chất</h3>
+
+<input id="ten" placeholder="Loại vật chất">
+<input id="sl" type="number" placeholder="Số lượng">
+<input id="nguoi" placeholder="Người mượn">
+
+<br>
+
+<button onclick="nhap()">Nhập</button>
+<button onclick="xuat()">Xuất</button>
+<button onclick="muon()">Mượn</button>
+<button onclick="tra()">Trả</button>
+<button onclick="taiExcel()">Xuất Excel</button>
+
+<h3>📊 Tồn kho</h3>
+
+<table>
+<thead>
+<tr>
+<th>Loại vật chất</th>
+<th>Số lượng còn</th>
+<th>Người mượn</th>
+<th>Thời gian mượn</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
+
+<script>
+let data = JSON.parse(localStorage.getItem("kho") || "[]");
+
+function save(){
+    localStorage.setItem("kho", JSON.stringify(data));
+}
+
+function render(){
+    let html = "";
+    data.forEach(d => {
+        html += `
+        <tr>
+            <td>${d.ten}</td>
+            <td>${d.sl}</td>
+            <td>${d.nguoi || ""}</td>
+            <td>${d.time || ""}</td>
+        </tr>`;
+    });
+    document.getElementById("table").innerHTML = html;
+}
+
+function getItem(ten){
+    return data.find(d => d.ten.toLowerCase() === ten.toLowerCase());
+}
+
+function nhap(){
+    let ten = document.getElementById("ten").value;
+    let sl = parseInt(document.getElementById("sl").value);
+
+    let item = getItem(ten);
+    if(item) item.sl += sl;
+    else data.push({ten, sl, nguoi:"", time:""});
+
+    save(); render();
+}
+
+function xuat(){
+    let ten = document.getElementById("ten").value;
+    let sl = parseInt(document.getElementById("sl").value);
+
+    let item = getItem(ten);
+    if(item && item.sl >= sl) item.sl -= sl;
+
+    save(); render();
+}
+
+function muon(){
+    let ten = document.getElementById("ten").value;
+    let sl = parseInt(document.getElementById("sl").value);
+    let nguoi = document.getElementById("nguoi").value;
+
+    let item = getItem(ten);
+    if(item && item.sl >= sl){
+        item.sl -= sl;
+        item.nguoi = nguoi;
+        item.time = new Date().toLocaleString();
+    }
+
+    save(); render();
+}
+
+function tra(){
+    let ten = document.getElementById("ten").value;
+    let sl = parseInt(document.getElementById("sl").value);
+
+    let item = getItem(ten);
+    if(item){
+        item.sl += sl;
+        item.nguoi = "";
+        item.time = "";
+    }
+
+    save(); render();
+}
+
+function taiExcel(){
+    let ws = XLSX.utils.json_to_sheet(data);
+    let wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Kho");
+    XLSX.writeFile(wb, "dulieukho.xlsx");
+}
+
+render();
+</script>
+
+</body>
+</html>
