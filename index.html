@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quản lý kho</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body { font-family: Arial; text-align: center; background: #f2f2f2; }
+    .container { max-width: 1200px; margin: auto; }
+    .panel { background: #fff; padding: 16px; border-radius: 12px; margin: 20px 0; }
+    img { width: 600px; margin-top: 20px; }
+    input, button { padding: 10px; margin: 5px; border-radius: 8px; }
+    button { color: white; border: none; cursor: pointer; }
+    .btn-green { background: green; }
+    .btn-red { background: red; }
+    .btn-yellow { background: orange; }
+    .btn-gray { background: gray; }
+    .btn-purple { background: purple; }
+
+    table { width: 100%; border-collapse: collapse; background: white; }
+    th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #eee; }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+<h2>📦 Quản lý kho</h2>
+
+<!-- ẢNH KHO -->
+<img src="sodo.png">
+
+<div class="panel">
+
+<!-- INPUT -->
+<input list="dsVatChat" id="ten" placeholder="Loại vật chất">
+<datalist id="dsVatChat"></datalist>
+
+<input id="sl" type="number" placeholder="Số lượng">
+<input id="nguoi" placeholder="Người">
+
+<br>
+
+<button class="btn-green" onclick="nhap()">Nhập</button>
+<button class="btn-red" onclick="xuat()">Xuất</button>
+<button class="btn-yellow" onclick="muon()">Mượn</button>
+<button class="btn-gray" onclick="tra()">Trả</button>
+
+<br>
+
+<button class="btn-purple" onclick="xuatExcel()">Xuất Excel</button>
+
+<div id="status"></div>
+
+</div>
+
+<div class="panel">
+<h3>Tồn kho</h3>
+<table>
+<thead>
+<tr>
+<th>Loại vật chất</th>
+<th>Số lượng</th>
+</tr>
+</thead>
+<tbody id="kho"></tbody>
+</table>
+</div>
+
+<div class="panel">
+<h3>Lịch sử</h3>
+<table>
+<thead>
+<tr>
+<th>STT</th>
+<th>Tên</th>
+<th>Số lượng</th>
+<th>Người</th>
+<th>Thời gian</th>
+<th>Hành động</th>
+</tr>
+</thead>
+<tbody id="log"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+const KHO_KEY = "kho";
+const LOG_KEY = "log";
+
+const initialKho = [
+  { ten: "Cuốc BB", sl: 9 },
+  { ten: "Xẻng BB", sl: 22 },
+  { ten: "Nẹp 1m8", sl: 16 }
+];
+
+let kho = JSON.parse(localStorage.getItem(KHO_KEY)) || initialKho;
+let log = JSON.parse(localStorage.getItem(LOG_KEY)) || [];
+
+// HIỂN THỊ DANH SÁCH
+document.getElementById("dsVatChat").innerHTML =
+  initialKho.map(i => `<option value="${i.ten}">`).join("");
+
+// VALIDATE
+function validate(ten, sl) {
+  if (!ten) return false;
+
+  const exists = initialKho.some(i => i.ten.toLowerCase() === ten.toLowerCase());
+  if (!exists) {
+    alert("Sai tên vật chất!");
+    return false;
+  }
+
+  if (!sl || sl <= 0) {
+    alert("Sai số lượng!");
+    return false;
+  }
+
+  return true;
+}
+
+// SAVE
+function save() {
+  localStorage.setItem(KHO_KEY, JSON.stringify(kho));
+  localStorage.setItem(LOG_KEY, JSON.stringify(log));
+}
+
+// LẤY ITEM
+function getItem(ten) {
+  return kho.find(i => i.ten.toLowerCase() === ten.toLowerCase());
+}
+
+// LOG
+function addLog(ten, sl, nguoi, action) {
+  log.unshift({
+    ten,
+    sl,
+    nguoi,
+    time: new Date().toLocaleString(),
+    action
+  });
+}
+
+// NHẬP
+function nhap() {
+  let ten = tenEl.value;
+  let sl = parseInt(slEl.value);
+  let nguoi = nguoiEl.value;
+
+  if (!validate(ten, sl)) return;
+
+  let item = getItem(ten);
+  item.sl += sl;
+
+  addLog(ten, sl, nguoi, "Nhập");
+  save(); render();
+}
+
+// XUẤT
+function xuat() {
+  let ten = tenEl.value;
+  let sl = parseInt(slEl.value);
+  let nguoi = nguoiEl.value;
+
+  let item = getItem(ten);
+  if (!item || item.sl < sl) return alert("Không đủ");
+
+  item.sl -= sl;
+
+  addLog(ten, sl, nguoi, "Xuất");
+  save(); render();
+}
+
+// MƯỢN
+function muon() {
+  xuat();
+}
+
+// TRẢ
+function tra() {
+  let ten = tenEl.value;
+  let sl = parseInt(slEl.value);
+  let nguoi = nguoiEl.value;
+
+  let item = getItem(ten);
+  item.sl += sl;
+
+  addLog(ten, sl, nguoi, "Trả");
+  save(); render();
+}
+
+// RENDER
+function render() {
+  khoEl.innerHTML = kho.map(i => `
+    <tr><td>${i.ten}</td><td>${i.sl}</td></tr>
+  `).join("");
+
+  logEl.innerHTML = log.map((i, index) => `
+    <tr>
+      <td>${index+1}</td>
+      <td>${i.ten}</td>
+      <td>${i.sl}</td>
+      <td>${i.nguoi}</td>
+      <td>${i.time}</td>
+      <td>${i.action}</td>
+    </tr>
+  `).join("");
+}
+
+// EXCEL
+function xuatExcel() {
+  const wb = XLSX.utils.book_new();
+
+  const sheet1 = XLSX.utils.json_to_sheet(kho);
+  const sheet2 = XLSX.utils.json_to_sheet(log);
+
+  XLSX.utils.book_append_sheet(wb, sheet1, "Kho");
+  XLSX.utils.book_append_sheet(wb, sheet2, "LichSu");
+
+  XLSX.writeFile(wb, "kho.xlsx");
+}
+
+// DOM
+const tenEl = document.getElementById("ten");
+const slEl = document.getElementById("sl");
+const nguoiEl = document.getElementById("nguoi");
+const khoEl = document.getElementById("kho");
+const logEl = document.getElementById("log");
+
+// INIT
+render();
+</script>
+
+</body>
+</html>
